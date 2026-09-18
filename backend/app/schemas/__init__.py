@@ -23,6 +23,12 @@ from app.schemas.restroom import (
     RestroomUpdate,
 )
 from app.schemas.stats import DashboardStats
+from app.schemas.utility import (
+    UtilityReadingCreate,
+    UtilityReadingOut,
+    UtilityReadingUpdate,
+    UtilitySummaryOut,
+)
 
 __all__ = [
     "Page",
@@ -44,4 +50,8 @@ __all__ = [
     "IssueStatusUpdate",
     "IssueOut",
     "DashboardStats",
+    "UtilityReadingCreate",
+    "UtilityReadingUpdate",
+    "UtilityReadingOut",
+    "UtilitySummaryOut",
 ]

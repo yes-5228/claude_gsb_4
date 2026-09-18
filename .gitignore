@@ -42,3 +42,5 @@ traces/
 db.sqlite3
 *.sqlite3
 .venv
+# 运行时 SQLite 数据
+backend/data/

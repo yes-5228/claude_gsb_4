@@ -19,7 +19,8 @@ from app.models import Restroom
 from app.schemas.inspection import InspectionCreate, InspectionItem
 from app.schemas.issue import IssueCreate, IssueStatusUpdate
 from app.schemas.restroom import RestroomCreate
-from app.services import inspection_service, issue_service, restroom_service
+from app.schemas.utility import UtilityReadingCreate
+from app.services import inspection_service, issue_service, restroom_service, utility_service
 
 RANDOM_SEED = 20240913
 
@@ -78,6 +79,16 @@ CATEGORY_BY_ITEM = {
     "工具与标识摆放": IssueCategory.OTHER,
     "墙面门窗卫生": IssueCategory.CLEANING,
 }
+
+# 各等级公厕的月度用水量（吨）/用电量（度）基准
+UTILITY_BASELINES = {
+    RestroomGrade.FIRST: (170.0, 850.0),
+    RestroomGrade.SECOND: (110.0, 560.0),
+    RestroomGrade.THIRD: (65.0, 320.0),
+}
+WATER_UNIT_PRICE = 3.8
+ELECTRICITY_UNIT_PRICE = 0.85
+UTILITY_MONTHS = 8  # 生成最近 8 个月的抄表记录
 
 
 def _build_items(rng: random.Random, quality: float) -> list[InspectionItem]:
@@ -190,7 +201,69 @@ def seed_database(db: Session, *, reset: bool = False) -> int:
         created += 1
         _advance_issue(db, issue.id, age_days, rng)
 
+    _seed_utility_readings(db, restrooms, rng, now)
+
     return created
+
+
+def _period_ago(now: datetime, offset: int) -> str:
+    """now 往前 offset 个月的 YYYY-MM。"""
+    month = now.month - offset
+    year = now.year
+    while month <= 0:
+        month += 12
+        year -= 1
+    return f"{year:04d}-{month:02d}"
+
+
+def _seed_utility_readings(
+    db: Session, restrooms: list[Restroom], rng: random.Random, now: datetime
+) -> None:
+    """为每座公厕生成近几个月的水表、电表抄表记录，含个别异常月用于演示预警。"""
+    leak_restroom_idx = 1  # 滨江公园：某月用水激增，模拟管网漏水
+    elec_spike_idx = 5  # 文化路步行街：某月用电激增，模拟设备长时间运行
+    closed_idx = 9  # 老城区第三小学旁：停用后用量归零
+
+    for idx, room in enumerate(restrooms):
+        water_base, elec_base = UTILITY_BASELINES[RestroomGrade(room.grade)]
+        water_reading = rng.uniform(800, 3000)
+        elec_reading = rng.uniform(5000, 20000)
+        for offset in range(UTILITY_MONTHS - 1, -1, -1):
+            period = _period_ago(now, offset)
+            month = int(period[5:7])
+            # 夏季用水、用电略高；随机波动控制在 ±6%，避免误触发环比 ±30% 预警
+            seasonal = 1.15 if month in (6, 7, 8) else 1.0
+            water_usage = water_base * seasonal * rng.uniform(0.94, 1.06)
+            elec_usage = elec_base * (1.1 if month in (6, 7, 8) else 1.0) * rng.uniform(0.94, 1.06)
+            if idx == leak_restroom_idx and offset == 2:
+                water_usage *= 2.0  # 模拟当月漏水
+            if idx == elec_spike_idx and offset == 1:
+                elec_usage *= 1.75  # 模拟设备长时间运行
+            if idx == closed_idx and offset <= 1:
+                water_usage = elec_usage = 0.0  # 停用后用量归零
+
+            water_reading += water_usage
+            elec_reading += elec_usage
+            utility_service.create_reading(
+                db,
+                UtilityReadingCreate(
+                    restroom_id=room.id,
+                    meter_type="水表",
+                    period=period,
+                    reading=round(water_reading, 1),
+                    unit_price=WATER_UNIT_PRICE,
+                ),
+            )
+            utility_service.create_reading(
+                db,
+                UtilityReadingCreate(
+                    restroom_id=room.id,
+                    meter_type="电表",
+                    period=period,
+                    reading=round(elec_reading, 1),
+                    unit_price=ELECTRICITY_UNIT_PRICE,
+                ),
+            )
 
 
 def _advance_issue(db: Session, issue_id: int, age_days: int, rng: random.Random) -> None:

@@ -26,6 +26,11 @@ class InspectionResult(StrEnum):
     ABNORMAL = "发现问题"
 
 
+class MeterType(StrEnum):
+    WATER = "水表"
+    ELECTRICITY = "电表"
+
+
 class IssueCategory(StrEnum):
     CLEANING = "保洁不到位"
     FACILITY = "设施损坏"
@@ -97,3 +102,12 @@ OPEN_ISSUE_STATUSES: list[str] = [
 
 # 单检查项低于该分数视为不合格项
 INSPECTION_ITEM_PROBLEM_THRESHOLD = 6
+
+# 水电用量环比增减幅度超过该百分比（±）时判定为异常并给出提示
+UTILITY_ALERT_THRESHOLD_PERCENT = 30.0
+
+# 各表计类型的计量单位，仅用于展示
+METER_TYPE_UNITS: dict[str, str] = {
+    MeterType.WATER: "吨",
+    MeterType.ELECTRICITY: "度",
+}

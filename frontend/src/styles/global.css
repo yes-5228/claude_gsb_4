@@ -850,3 +850,31 @@ table.data-table td.wrap {
     white-space: nowrap;
   }
 }
+
+/* 水电计量：环比涨降 */
+.change-pct {
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.change-pct.change-up {
+  color: var(--danger);
+}
+
+.change-pct.change-down {
+  color: var(--success);
+}
+
+.change-pct.change-flat {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.reason-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.8;
+}

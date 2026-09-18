@@ -4,20 +4,22 @@ import { Link, useParams } from 'react-router-dom';
 import { inspectionApi } from '../../api/inspections.js';
 import { issueApi } from '../../api/issues.js';
 import { restroomApi } from '../../api/restrooms.js';
+import { utilityApi } from '../../api/utilities.js';
 import DataTable from '../../components/DataTable.jsx';
 import DetailList from '../../components/DetailList.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
-import { ScorePill, SeverityTag, StatusTag } from '../../components/Tags.jsx';
+import { AbnormalTag, ChangePct, ScorePill, SeverityTag, StatusTag } from '../../components/Tags.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { useListQuery } from '../../hooks/useListQuery.js';
-import { formatDateTime } from '../../utils/format.js';
+import { formatDateTime, formatNumber, meterUnit } from '../../utils/format.js';
 import RestroomFormModal from './RestroomFormModal.jsx';
 
 const TABS = [
   { key: 'profile', label: '基础档案' },
   { key: 'inspections', label: '巡查记录' },
   { key: 'issues', label: '问题记录' },
+  { key: 'utilities', label: '水电抄表' },
 ];
 
 export default function RestroomDetailPage() {
@@ -38,6 +40,11 @@ export default function RestroomDetailPage() {
     (params) => issueApi.list({ ...params, restroom_id: restroomId }),
     {},
     5,
+  );
+  const utilities = useListQuery(
+    (params) => utilityApi.list({ ...params, restroom_id: restroomId }),
+    {},
+    6,
   );
 
   return (
@@ -186,6 +193,57 @@ export default function RestroomDetailPage() {
                   ]}
                 />
                 <Pagination meta={issues.meta} onPageChange={issues.setPage} />
+              </section>
+            ) : null}
+
+            {tab === 'utilities' ? (
+              <section className="card">
+                <div className="card-title">
+                  <h3>水电抄表记录</h3>
+                  <Link className="hint" to="/utilities">
+                    前往水电计量模块 →
+                  </Link>
+                </div>
+                <DataTable
+                  loading={utilities.loading}
+                  error={utilities.error}
+                  rows={utilities.items}
+                  emptyText="该公厕暂无抄表记录"
+                  columns={[
+                    { key: 'period', title: '月份' },
+                    { key: 'meter_type', title: '表计' },
+                    {
+                      key: 'usage',
+                      title: '用量',
+                      render: (row) =>
+                        row.usage === null
+                          ? '-'
+                          : `${formatNumber(row.usage)} ${meterUnit(row.meter_type)}`,
+                    },
+                    {
+                      key: 'fee',
+                      title: '费用',
+                      render: (row) => (row.fee === null ? '-' : `${formatNumber(row.fee)} 元`),
+                    },
+                    {
+                      key: 'change_pct',
+                      title: '环比',
+                      render: (row) => <ChangePct value={row.change_pct} />,
+                    },
+                    {
+                      key: 'is_abnormal',
+                      title: '状态',
+                      render: (row) => <AbnormalTag abnormal={row.is_abnormal} />,
+                    },
+                    {
+                      key: 'abnormal_reasons',
+                      title: '异常提示',
+                      wrap: true,
+                      render: (row) => row.abnormal_reasons?.[0] || '-',
+                    },
+                  ]}
+                />
+                <Pagination meta={utilities.meta} onPageChange={utilities.setPage} />
               </section>
             ) : null}
           </>

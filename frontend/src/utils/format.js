@@ -22,6 +22,24 @@ export function formatShortDate(value) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+/** 环比百分比：+12.3% / -8.0%，空值显示 -。 */
+export function formatPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  const num = Number(value);
+  return `${num > 0 ? '+' : ''}${num.toFixed(1)}%`;
+}
+
+/** 数字保留两位小数并去掉多余的 0，空值显示 -。 */
+export function formatNumber(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  return Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+}
+
+/** 表计类型对应的计量单位。 */
+export function meterUnit(meterType) {
+  return meterType === '电表' ? '度' : '吨';
+}
+
 /** 把 Date 或 ISO 字符串转成 datetime-local 输入框需要的值。 */
 export function toDateTimeInput(value) {
   const date = value ? new Date(value) : new Date();

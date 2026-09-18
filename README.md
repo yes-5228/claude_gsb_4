@@ -10,6 +10,7 @@
 | 公厕台账 | `/restrooms`、`/restrooms/:id` | 台账增删改查、区域与状态筛选、公厕详情（档案 + 历史巡查 + 历史问题）、关联数据删除保护 |
 | 保洁巡查 | `/inspections` | 8 项检查项打分、自动折算百分制得分与等级、班次/日期/结论筛选、巡查详情、一键转问题上报 |
 | 问题上报 | `/issues`、`/issues/:id` | 问题上报（可关联巡查记录）、分类/程度/期限、整改流程流转、整改轨迹时间线、超期预警、追加跟进记录 |
+| 水电计量 | `/utilities` | 按月抄录水表电表读数，自动计算用量、费用与环比增减，超出正常区间自动预警并给出可能原因，月度汇总统计 |
 
 其他页面不会互相混杂：台账、巡查、问题各自独立成页，详情页再做跨模块的关联展示。
 
@@ -25,11 +26,11 @@
 .
 ├── backend
 │   ├── app
-│   │   ├── api/v1/endpoints      # 路由层：restrooms / inspections / issues / stats / meta
+│   │   ├── api/v1/endpoints      # 路由层：restrooms / inspections / issues / utilities / stats / meta
 │   │   ├── core                 # 配置、数据库、业务常量、领域异常
-│   │   ├── models               # ORM 模型：公厕、巡查、问题、整改流水
+│   │   ├── models               # ORM 模型：公厕、巡查、问题、整改流水、抄表记录
 │   │   ├── schemas              # Pydantic 出入参模型
-│   │   ├── services             # 业务规则层：台账、巡查、问题整改、评分、统计
+│   │   ├── services             # 业务规则层：台账、巡查、问题整改、评分、水电计量、统计
 │   │   ├── seed.py              # 演示数据生成
 │   │   └── main.py              # 应用入口（含异常处理、CORS、健康检查）
 │   ├── tests                    # pytest 接口测试
@@ -40,7 +41,7 @@
 │   │   ├── api                  # 按资源拆分的接口封装 + 统一 fetch 客户端
 │   │   ├── components           # 通用组件：表格、分页、弹窗、标签、图表、时间线等
 │   │   ├── hooks                # useAsync / useListQuery / useDictionaries
-│   │   ├── pages                # dashboard / restrooms / inspections / issues 四个模块
+│   │   ├── pages                # dashboard / restrooms / inspections / issues / utilities 五个模块
 │   │   ├── utils                # 时间格式化、评分换算
 │   │   └── styles/global.css
 │   ├── nginx.conf
@@ -137,6 +138,10 @@ npm run dev
 | GET | `/issues/{id}/transitions` | 当前状态可执行的流转动作 |
 | POST | `/issues/{id}/transitions` | 推进整改状态（越级流转返回 400） |
 | POST | `/issues/{id}/records` | 追加跟进记录（不改变状态） |
+| GET | `/utilities` | 抄表记录查询（restroom_id/district/meter_type/月份区间/仅异常/关键字） |
+| POST | `/utilities` | 新增抄表记录，自动计算用量、费用、环比与异常标记 |
+| GET/PATCH/DELETE | `/utilities/{id}` | 详情 / 更新（联动重算下一月）/ 删除 |
+| GET | `/utilities/summary` | 月度汇总：水电用量、费用、环比与异常条数（可按公厕过滤） |
 | GET | `/stats/overview` | 核心指标 |
 | GET | `/stats/dashboard` | 看板聚合数据（趋势、分布、区域、排行、最新记录） |
 | GET | `/meta/dictionaries` | 枚举字典（状态、分类、程度、检查项、流转规则） |
@@ -149,11 +154,12 @@ npm run dev
 - **问题编号**：`WT-` + 上报日期 + 当日三位流水号。
 - **整改闭环**：`待整改 → 整改中 → 待验收 → 已完成 → 已关闭`；`待验证` 阶段可被驳回退回 `整改中`，`待整改/整改中` 可直接作废关闭。每次流转都会写入一条整改流水（动作、原状态、新状态、操作人、说明），详情页以时间线呈现。
 - **超期预警**：整改期限早于当前时间且状态仍处于未闭环（待整改/整改中/待验收）时，列表与详情页显示「已超期」，看板统计超期数量。
+- **水电计量**：每座公厕的水表、电表每月各一条抄表记录（同月同表重复登记返回 409）。用量 = 本期读数 − 上期读数（上期读数留空自动取上一月记录；读数倒挂返回 400），费用 = 用量 × 单价。环比 = 与上一自然月用量的增减百分比，超过 ±30% 或用量为零时判定异常，并按表计类型与涨降方向给出可能原因（漏水、设备长时间运行、表计故障、漏抄等）；上一月记录的新增/修改/删除会联动重算本月数据。
 - **删除保护**：删除公厕时若已存在巡查或问题记录，接口返回 409 并提示数量，需要显式 `force=true` 才会级联删除；前端会二次确认。
 
 ## 演示数据
 
-`SEED_ON_STARTUP=true`（默认）且数据库为空时，会自动写入：10 座公厕（4 个区域、三类等级、含维修/停用状态）、近 14 天约 90 条巡查记录、13 条不同整改阶段的问题及其完整整改轨迹。数据由固定随机种子生成，结果可复现；如需重置，删除 `backend/data/app.db`（或 `docker compose down -v`）后重启即可。
+`SEED_ON_STARTUP=true`（默认）且数据库为空时，会自动写入：10 座公厕（4 个区域、三类等级、含维修/停用状态）、近 14 天约 90 条巡查记录、13 条不同整改阶段的问题及其完整整改轨迹、近 8 个月每座公厕的水表电表抄表记录（含漏水、用电激增、停用归零等异常示例）。数据由固定随机种子生成，结果可复现；如需重置，删除 `backend/data/app.db`（或 `docker compose down -v`）后重启即可。
 
 ## 测试与验证
 
