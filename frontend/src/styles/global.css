@@ -819,6 +819,91 @@ table.data-table td.wrap {
   color: var(--text-muted);
 }
 
+/* 水电计量 */
+.alert-warning {
+  background: var(--warning-soft);
+  color: #92400e;
+}
+
+.utility-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.utility-block.is-abnormal {
+  border-color: #f3d29a;
+  background: #fffdf7;
+}
+
+.utility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.utility-grid input:disabled {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.utility-grid input.input-danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.utility-grid input.input-warning {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.utility-reasons {
+  margin: 0;
+}
+
+.utility-reasons ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.utility-reasons li {
+  margin: 2px 0;
+}
+
+.utility-reason-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.utility-fee-hint {
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.utility-reading {
+  font-size: 12px;
+}
+
+.change-cell {
+  white-space: nowrap;
+}
+
+.change-cell.change-up {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.change-cell.change-down {
+  color: #b45309;
+  font-weight: 600;
+}
+
 .inline {
   display: flex;
   align-items: center;

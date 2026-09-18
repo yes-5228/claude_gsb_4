@@ -19,7 +19,8 @@ from app.models import Restroom
 from app.schemas.inspection import InspectionCreate, InspectionItem
 from app.schemas.issue import IssueCreate, IssueStatusUpdate
 from app.schemas.restroom import RestroomCreate
-from app.services import inspection_service, issue_service, restroom_service
+from app.schemas.utility import UtilityRecordCreate
+from app.services import inspection_service, issue_service, restroom_service, utility_service
 
 RANDOM_SEED = 20240913
 
@@ -190,7 +191,81 @@ def seed_database(db: Session, *, reset: bool = False) -> int:
         created += 1
         _advance_issue(db, issue.id, age_days, rng)
 
+    _seed_utility_records(db, restrooms, now, rng)
     return created
+
+
+def _month_series(now: datetime, count: int) -> list[tuple[int, int]]:
+    """返回截至当前月、按时间正序排列的 (年, 月) 序列。"""
+    year, month = now.year, now.month
+    months: list[tuple[int, int]] = []
+    for _ in range(count):
+        months.append((year, month))
+        month -= 1
+        if month == 0:
+            month = 12
+            year -= 1
+    months.reverse()
+    return months
+
+
+# 固定的异常演示：公厕在 restrooms 列表中的序号 -> {时间序列下标: 异常类型}
+_UTILITY_ANOMALIES: dict[int, dict[int, str]] = {
+    0: {6: "water_spike"},
+    3: {5: "elec_spike"},
+    6: {7: "water_rollback"},
+}
+
+
+def _seed_utility_records(db: Session, restrooms: list, now: datetime, rng: random.Random) -> None:
+    """为近 8 个月生成累计表底随机游走的水电记录，并注入偏高/回退异常样例。"""
+    months = _month_series(now, 8)
+
+    for room_index, room in enumerate(restrooms):
+        if room.status == RestroomStatus.CLOSED:
+            continue
+        water_base = room.stall_count * 1.8 + room.basin_count * 2.5 + rng.uniform(2, 6)
+        elec_base = room.stall_count * 22 + room.basin_count * 15 + rng.uniform(20, 60)
+        water_reading = water_base * 2
+        elec_reading = elec_base * 2
+        plans = _UTILITY_ANOMALIES.get(room_index, {})
+
+        for index, (year, month) in enumerate(months):
+            water_inc = water_base * rng.uniform(0.85, 1.15)
+            elec_inc = elec_base * rng.uniform(0.85, 1.15)
+            remark = None
+            plan = plans.get(index)
+            if plan == "water_spike":
+                water_inc *= 2.3
+                remark = "本月用水量环比异常偏高，已安排核查供水管线与便器长流水"
+            elif plan == "elec_spike":
+                elec_inc *= 2.3
+                remark = "本月用电量环比异常偏高，已排查大功率设备与待机耗电"
+
+            water_reading += water_inc
+            elec_reading += elec_inc
+            if plan == "water_rollback":
+                # 换表归零/抄录错误：本期表底低于上期
+                water_reading -= water_inc + water_base * 1.5
+                remark = "水表读数回退，疑似换表归零或抄录错误，待现场复核"
+
+            # 当前月份取当前时刻，历史月份统一记到当月 25 日，避免出现未来时间
+            is_current = year == now.year and month == now.month
+            recorded_at = now if is_current else datetime(year, month, 25, 9, 0)
+
+            utility_service.create_utility_record(
+                db,
+                UtilityRecordCreate(
+                    restroom_id=room.id,
+                    period_year=year,
+                    period_month=month,
+                    recorded_at=recorded_at,
+                    reader=rng.choice(INSPECTORS),
+                    water_reading=round(water_reading),
+                    elec_reading=round(elec_reading),
+                    remark=remark,
+                ),
+            )
 
 
 def _advance_issue(db: Session, issue_id: int, age_days: int, rng: random.Random) -> None:

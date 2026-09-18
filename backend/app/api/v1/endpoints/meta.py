@@ -6,10 +6,17 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.constants import (
+    ELEC_CHANGE_FLOOR_KWH,
+    ELEC_UNIT,
     INSPECTION_CHECK_ITEMS,
     INSPECTION_ITEM_MAX_SCORE,
     ISSUE_TRANSITIONS,
+    UTILITY_CHANGE_THRESHOLD,
+    UTILITY_REASONS,
+    WATER_CHANGE_FLOOR_TONS,
+    WATER_UNIT,
     IssueCategory,
     IssueSeverity,
     IssueStatus,
@@ -40,6 +47,14 @@ class Dictionaries(BaseModel):
     inspection_check_items: list[str]
     inspection_item_max_score: int
     issue_transitions: dict[str, list[str]]
+    utility_water_unit_price: float
+    utility_elec_unit_price: float
+    utility_change_threshold: float
+    utility_water_floor: float
+    utility_elec_floor: float
+    utility_water_unit: str
+    utility_elec_unit: str
+    utility_reasons: dict[str, list[str]]
 
 
 @router.get("/dictionaries", response_model=Dictionaries, summary="枚举字典")
@@ -54,6 +69,14 @@ def get_dictionaries() -> Dictionaries:
         inspection_check_items=list(INSPECTION_CHECK_ITEMS),
         inspection_item_max_score=INSPECTION_ITEM_MAX_SCORE,
         issue_transitions={key: list(value) for key, value in ISSUE_TRANSITIONS.items()},
+        utility_water_unit_price=settings.water_unit_price,
+        utility_elec_unit_price=settings.elec_unit_price,
+        utility_change_threshold=UTILITY_CHANGE_THRESHOLD,
+        utility_water_floor=WATER_CHANGE_FLOOR_TONS,
+        utility_elec_floor=ELEC_CHANGE_FLOOR_KWH,
+        utility_water_unit=WATER_UNIT,
+        utility_elec_unit=ELEC_UNIT,
+        utility_reasons={key: list(value) for key, value in UTILITY_REASONS.items()},
     )
 
 

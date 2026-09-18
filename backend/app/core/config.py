@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # 分页参数上限
     max_page_size: int = 100
 
+    # 水电计费默认单价（元/吨、元/度），建账时快照到记录，可用环境变量覆盖
+    water_unit_price: float = 4.6
+    elec_unit_price: float = 0.8
+
     @property
     def cors_origin_list(self) -> list[str]:
         if self.cors_origins.strip() == "*":

@@ -71,3 +71,39 @@ export function isOverdue(deadline, status) {
   if (['已完成', '已关闭'].includes(status)) return false;
   return new Date(deadline).getTime() < Date.now();
 }
+
+/** 数值格式化：空值显示 —，按指定小数位保留。 */
+export function formatNumber(value, digits = 2) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return Number(value).toLocaleString('zh-CN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  });
+}
+
+/** 金额格式化：保留两位小数。 */
+export function formatMoney(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 环比百分比：空值显示 —，正数补 ↑、负数补 ↓。 */
+export function formatChangePct(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const num = Number(value);
+  if (num === 0) return '0.0%';
+  const arrow = num > 0 ? '↑' : '↓';
+  return `${arrow} ${Math.abs(num).toFixed(1)}%`;
+}
+
+/** 水电用量判定对应的色调。 */
+export function utilityStatusTone(status) {
+  if (status === '用量偏高') return 'tag-danger';
+  if (status === '用量偏低') return 'tag-warning';
+  return 'tag-success';
+}
+
+/** 综合状态色调。 */
+export function utilityOverallTone(status) {
+  return status === '异常' ? 'tag-danger' : 'tag-success';
+}

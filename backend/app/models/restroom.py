@@ -45,3 +45,6 @@ class Restroom(Base):
     issues: Mapped[list["Issue"]] = relationship(  # noqa: F821
         back_populates="restroom", cascade="all, delete-orphan"
     )
+    utility_records: Mapped[list["UtilityRecord"]] = relationship(  # noqa: F821
+        back_populates="restroom", cascade="all, delete-orphan"
+    )
